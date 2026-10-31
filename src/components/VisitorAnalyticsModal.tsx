@@ -294,7 +294,7 @@ export function VisitorAnalyticsModal({ isOpen, onClose }: VisitorAnalyticsModal
                     {data.uniqueVisitors}
                   </div>
                   <div className="text-[11px] text-slate-400 mt-1 font-mono-tech">
-                    Unique IP sessions
+                    Returning-browser sessions
                   </div>
                 </div>
 
@@ -307,7 +307,7 @@ export function VisitorAnalyticsModal({ isOpen, onClose }: VisitorAnalyticsModal
                     {countryCounts.length}
                   </div>
                   <div className="text-[11px] text-slate-400 mt-1 font-mono-tech">
-                    Across 4 continents
+                    {countryCounts.length === 1 ? '1 recorded country' : `${countryCounts.length} recorded countries`}
                   </div>
                 </div>
 
@@ -499,7 +499,9 @@ export function VisitorAnalyticsModal({ isOpen, onClose }: VisitorAnalyticsModal
                       <span className="text-xl">{getCountryFlag(rec.countryCode)}</span>
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="font-bold text-white">{rec.city}, {rec.country}</span>
+                          <span className="font-bold text-white">
+                            {rec.displayName || `${rec.city}, ${rec.country}`}
+                          </span>
                           {rec.isCurrentSession && (
                             <span className="px-1.5 py-0.2 rounded text-[9px] uppercase tracking-wider bg-violet-600 text-white font-bold">
                               You
@@ -508,6 +510,9 @@ export function VisitorAnalyticsModal({ isOpen, onClose }: VisitorAnalyticsModal
                         </div>
                         <div className="text-[10px] text-slate-400">
                           {rec.region ? `${rec.region} · ` : ''}{rec.device} ({rec.browser})
+                        </div>
+                        <div className="text-[10px] text-violet-300">
+                          {rec.source ? `Source: ${rec.source}` : 'Source: Direct / unknown'}
                         </div>
                       </div>
                     </div>
@@ -530,7 +535,7 @@ export function VisitorAnalyticsModal({ isOpen, onClose }: VisitorAnalyticsModal
         <div className="px-6 py-3.5 bg-black/60 border-t border-white/10 flex flex-wrap items-center justify-between gap-3 text-xs font-mono-tech text-slate-400">
           <div className="flex items-center gap-2">
             <ShieldCheck className="w-4 h-4 text-emerald-400" />
-            <span className="text-[11px]">Privacy-respecting telemetry · No cookies or PII stored</span>
+            <span className="text-[11px]">Anonymous by default · Names only when explicitly shared</span>
           </div>
 
           <div className="flex items-center gap-2 text-[11px]">

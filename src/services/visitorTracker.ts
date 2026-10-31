@@ -1,14 +1,15 @@
-// Visitor Tracking & Geolocation Telemetry Service
-
 export interface VisitorRecord {
   id: string;
-  timestamp: string; // ISO String
+  timestamp: string;
   country: string;
   countryCode: string;
   city: string;
   region: string;
   device: 'Desktop' | 'Mobile' | 'Tablet';
   browser: string;
+  displayName?: string;
+  source?: string;
+  pagePath?: string;
   isCurrentSession?: boolean;
 }
 
@@ -21,245 +22,112 @@ export interface VisitorAnalyticsData {
 
 const STORAGE_KEY = 'aaroshmi_portfolio_telemetry_v1';
 const SESSION_KEY = 'aaroshmi_telemetry_session_id';
+const VISITOR_KEY = 'aaroshmi_telemetry_visitor_id';
+const TRACKING_ENDPOINT = import.meta.env.VITE_VISITOR_TRACKER_ENDPOINT?.trim();
 
-// Convert 2-letter country code into flag emoji
 export function getCountryFlag(code?: string): string {
   if (!code || code.length !== 2) return '🌐';
   const upper = code.toUpperCase();
-  const codePoints = [...upper].map(c => 127397 + c.charCodeAt(0));
+  const codePoints = [...upper].map(char => 127397 + char.charCodeAt(0));
   return String.fromCodePoint(...codePoints);
 }
 
-// Infer city & country from browser timezone when offline or API is unavailable
-function inferLocationFromTimezone(): { city: string; country: string; countryCode: string; region: string } {
-  try {
-    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
-    if (tz.includes('Kolkata') || tz.includes('Calcutta') || tz.includes('India')) {
-      return { city: 'Chennai', country: 'India', countryCode: 'IN', region: 'Tamil Nadu' };
-    }
-    if (tz.includes('New_York') || tz.includes('Detroit')) {
-      return { city: 'New York', country: 'United States', countryCode: 'US', region: 'New York' };
-    }
-    if (tz.includes('Los_Angeles') || tz.includes('San_Francisco')) {
-      return { city: 'San Francisco', country: 'United States', countryCode: 'US', region: 'California' };
-    }
-    if (tz.includes('London')) {
-      return { city: 'London', country: 'United Kingdom', countryCode: 'GB', region: 'Greater London' };
-    }
-    if (tz.includes('Singapore')) {
-      return { city: 'Singapore', country: 'Singapore', countryCode: 'SG', region: 'Singapore' };
-    }
-    if (tz.includes('Berlin') || tz.includes('Frankfurt')) {
-      return { city: 'Berlin', country: 'Germany', countryCode: 'DE', region: 'Berlin' };
-    }
-    if (tz.includes('Tokyo')) {
-      return { city: 'Tokyo', country: 'Japan', countryCode: 'JP', region: 'Kanto' };
-    }
-    if (tz.includes('Sydney') || tz.includes('Melbourne')) {
-      return { city: 'Sydney', country: 'Australia', countryCode: 'AU', region: 'New South Wales' };
-    }
-    if (tz.includes('Toronto')) {
-      return { city: 'Toronto', country: 'Canada', countryCode: 'CA', region: 'Ontario' };
-    }
-  } catch {
-    // fallback below
-  }
-  return { city: 'Bengaluru', country: 'India', countryCode: 'IN', region: 'Karnataka' };
+function inferLocationFromTimezone(): Pick<VisitorRecord, 'city' | 'country' | 'countryCode' | 'region'> {
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+  const knownLocations: Record<string, Pick<VisitorRecord, 'city' | 'country' | 'countryCode' | 'region'>> = {
+    'America/New_York': { city: 'New York', country: 'United States', countryCode: 'US', region: 'New York' },
+    'America/Los_Angeles': { city: 'Los Angeles', country: 'United States', countryCode: 'US', region: 'California' },
+    'Europe/London': { city: 'London', country: 'United Kingdom', countryCode: 'GB', region: 'Greater London' },
+    'Asia/Singapore': { city: 'Singapore', country: 'Singapore', countryCode: 'SG', region: 'Singapore' },
+    'Europe/Berlin': { city: 'Berlin', country: 'Germany', countryCode: 'DE', region: 'Berlin' },
+    'Asia/Tokyo': { city: 'Tokyo', country: 'Japan', countryCode: 'JP', region: 'Kanto' },
+    'Australia/Sydney': { city: 'Sydney', country: 'Australia', countryCode: 'AU', region: 'New South Wales' },
+    'America/Toronto': { city: 'Toronto', country: 'Canada', countryCode: 'CA', region: 'Ontario' },
+    'Asia/Calcutta': { city: 'Chennai', country: 'India', countryCode: 'IN', region: 'Tamil Nadu' },
+    'Asia/Kolkata': { city: 'Chennai', country: 'India', countryCode: 'IN', region: 'Tamil Nadu' },
+  };
+  const key = Object.keys(knownLocations).find(item => timezone === item || timezone.endsWith(item));
+  return key ? knownLocations[key] : { city: 'Unknown', country: 'Unknown', countryCode: '', region: '' };
 }
 
-function detectDevice(): 'Desktop' | 'Mobile' | 'Tablet' {
-  if (typeof window === 'undefined') return 'Desktop';
-  const ua = navigator.userAgent;
-  if (/iPad|Tablet/i.test(ua) || (navigator.maxTouchPoints > 1 && window.innerWidth >= 768 && window.innerWidth <= 1024)) {
+function detectDevice(): VisitorRecord['device'] {
+  if (typeof navigator === 'undefined') return 'Desktop';
+  const userAgent = navigator.userAgent;
+  if (/iPad|Tablet/i.test(userAgent) || (navigator.maxTouchPoints > 1 && window.innerWidth >= 768 && window.innerWidth <= 1024)) {
     return 'Tablet';
   }
-  if (/Mobile|Android|iPhone|iPod/i.test(ua) || window.innerWidth < 768) {
-    return 'Mobile';
-  }
+  if (/Mobile|Android|iPhone|iPod/i.test(userAgent) || window.innerWidth < 768) return 'Mobile';
   return 'Desktop';
 }
 
 function detectBrowser(): string {
-  if (typeof window === 'undefined') return 'Chrome';
-  const ua = navigator.userAgent;
-  if (ua.includes('Edg/')) return 'Edge';
-  if (ua.includes('Chrome/')) return 'Chrome';
-  if (ua.includes('Safari/') && !ua.includes('Chrome')) return 'Safari';
-  if (ua.includes('Firefox/')) return 'Firefox';
-  if (ua.includes('Opera') || ua.includes('OPR/')) return 'Opera';
+  const userAgent = navigator.userAgent;
+  if (userAgent.includes('Edg/')) return 'Edge';
+  if (userAgent.includes('Chrome/')) return 'Chrome';
+  if (userAgent.includes('Safari/') && !userAgent.includes('Chrome')) return 'Safari';
+  if (userAgent.includes('Firefox/')) return 'Firefox';
+  if (userAgent.includes('Opera') || userAgent.includes('OPR/')) return 'Opera';
   return 'Browser';
 }
 
-// Seed baseline authentic portfolio traffic records
-function getInitialSeedData(): VisitorAnalyticsData {
-  const now = Date.now();
-  const minute = 60 * 1000;
-  const hour = 60 * minute;
-  const day = 24 * hour;
+function getDisplayName(): string | undefined {
+  const params = new URLSearchParams(window.location.search);
+  const value = params.get('visitor') || params.get('visitor_name') || params.get('name');
+  const cleaned = value?.trim().replace(/\s+/g, ' ').slice(0, 80);
+  return cleaned || undefined;
+}
 
-  const baselineRecords: VisitorRecord[] = [
-    {
-      id: 'rec_101',
-      timestamp: new Date(now - 12 * minute).toISOString(),
-      city: 'Bengaluru',
-      country: 'India',
-      countryCode: 'IN',
-      region: 'Karnataka',
-      device: 'Desktop',
-      browser: 'Chrome',
-    },
-    {
-      id: 'rec_102',
-      timestamp: new Date(now - 45 * minute).toISOString(),
-      city: 'San Francisco',
-      country: 'United States',
-      countryCode: 'US',
-      region: 'California',
-      device: 'Desktop',
-      browser: 'Safari',
-    },
-    {
-      id: 'rec_103',
-      timestamp: new Date(now - 2.5 * hour).toISOString(),
-      city: 'Chennai',
-      country: 'India',
-      countryCode: 'IN',
-      region: 'Tamil Nadu',
-      device: 'Mobile',
-      browser: 'Chrome',
-    },
-    {
-      id: 'rec_104',
-      timestamp: new Date(now - 5 * hour).toISOString(),
-      city: 'London',
-      country: 'United Kingdom',
-      countryCode: 'GB',
-      region: 'Greater London',
-      device: 'Desktop',
-      browser: 'Firefox',
-    },
-    {
-      id: 'rec_105',
-      timestamp: new Date(now - 14 * hour).toISOString(),
-      city: 'Nagercoil',
-      country: 'India',
-      countryCode: 'IN',
-      region: 'Tamil Nadu',
-      device: 'Mobile',
-      browser: 'Safari',
-    },
-    {
-      id: 'rec_106',
-      timestamp: new Date(now - 1.2 * day).toISOString(),
-      city: 'Singapore',
-      country: 'Singapore',
-      countryCode: 'SG',
-      region: 'Singapore',
-      device: 'Desktop',
-      browser: 'Edge',
-    },
-    {
-      id: 'rec_107',
-      timestamp: new Date(now - 2 * day).toISOString(),
-      city: 'Hyderabad',
-      country: 'India',
-      countryCode: 'IN',
-      region: 'Telangana',
-      device: 'Desktop',
-      browser: 'Chrome',
-    },
-    {
-      id: 'rec_108',
-      timestamp: new Date(now - 2.8 * day).toISOString(),
-      city: 'Berlin',
-      country: 'Germany',
-      countryCode: 'DE',
-      region: 'Berlin',
-      device: 'Desktop',
-      browser: 'Chrome',
-    },
-    {
-      id: 'rec_109',
-      timestamp: new Date(now - 3.5 * day).toISOString(),
-      city: 'Bengaluru',
-      country: 'India',
-      countryCode: 'IN',
-      region: 'Karnataka',
-      device: 'Mobile',
-      browser: 'Chrome',
-    },
-    {
-      id: 'rec_110',
-      timestamp: new Date(now - 4.1 * day).toISOString(),
-      city: 'Toronto',
-      country: 'Canada',
-      countryCode: 'CA',
-      region: 'Ontario',
-      device: 'Desktop',
-      browser: 'Safari',
-    },
-    {
-      id: 'rec_111',
-      timestamp: new Date(now - 5.5 * day).toISOString(),
-      city: 'Coimbatore',
-      country: 'India',
-      countryCode: 'IN',
-      region: 'Tamil Nadu',
-      device: 'Mobile',
-      browser: 'Chrome',
-    },
-    {
-      id: 'rec_112',
-      timestamp: new Date(now - 6.2 * day).toISOString(),
-      city: 'Sydney',
-      country: 'Australia',
-      countryCode: 'AU',
-      region: 'New South Wales',
-      device: 'Tablet',
-      browser: 'Safari',
-    },
-    {
-      id: 'rec_113',
-      timestamp: new Date(now - 8 * day).toISOString(),
-      city: 'Mumbai',
-      country: 'India',
-      countryCode: 'IN',
-      region: 'Maharashtra',
-      device: 'Desktop',
-      browser: 'Chrome',
-    },
-    {
-      id: 'rec_114',
-      timestamp: new Date(now - 11 * day).toISOString(),
-      city: 'Seattle',
-      country: 'United States',
-      countryCode: 'US',
-      region: 'Washington',
-      device: 'Desktop',
-      browser: 'Edge',
-    },
-  ];
+function getSource(): string {
+  const params = new URLSearchParams(window.location.search);
+  const campaignSource = params.get('utm_source')?.trim().slice(0, 80);
+  if (campaignSource) return campaignSource;
+  if (document.referrer) {
+    try {
+      return new URL(document.referrer).hostname.replace(/^www\./, '').slice(0, 80);
+    } catch {
+      return 'Direct / unknown';
+    }
+  }
+  return 'Direct / unknown';
+}
 
-  return {
-    totalVisits: 142,
-    uniqueVisitors: 98,
-    records: baselineRecords,
-    lastUpdated: new Date().toISOString(),
-  };
+function getOrCreateVisitorId(): string {
+  const existing = localStorage.getItem(VISITOR_KEY);
+  if (existing) return existing;
+  const id = 'vis_' + createId();
+  localStorage.setItem(VISITOR_KEY, id);
+  return id;
+}
+
+function createId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
 
 export function getStoredAnalytics(): VisitorAnalyticsData {
-  if (typeof window === 'undefined') return getInitialSeedData();
+  if (typeof window === 'undefined') {
+    return { totalVisits: 0, uniqueVisitors: 0, records: [], lastUpdated: new Date().toISOString() };
+  }
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) {
-      const initial = getInitialSeedData();
+      const initial = { totalVisits: 0, uniqueVisitors: 0, records: [], lastUpdated: new Date().toISOString() };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(initial));
       return initial;
     }
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw) as VisitorAnalyticsData;
+    // Remove the former built-in demo records if this site was already opened
+    // with an older version of the tracker.
+    if (parsed.records?.some(record => record.id.startsWith('rec_'))) {
+      const clean = { totalVisits: 0, uniqueVisitors: 0, records: [], lastUpdated: new Date().toISOString() };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(clean));
+      return clean;
+    }
+    return parsed;
   } catch {
-    return getInitialSeedData();
+    return { totalVisits: 0, uniqueVisitors: 0, records: [], lastUpdated: new Date().toISOString() };
   }
 }
 
@@ -267,72 +135,91 @@ export function saveStoredAnalytics(data: VisitorAnalyticsData): void {
   if (typeof window === 'undefined') return;
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  } catch (e) {
-    console.error('Failed to save visitor telemetry', e);
+  } catch (error) {
+    console.error('Failed to save visitor analytics', error);
   }
 }
 
-// Record current visit once per session
-export async function trackCurrentVisit(): Promise<VisitorAnalyticsData> {
-  const currentData = getStoredAnalytics();
-  if (typeof window === 'undefined') return currentData;
+async function fetchAnalyticsFromEndpoint(): Promise<VisitorAnalyticsData | undefined> {
+  if (!TRACKING_ENDPOINT) return undefined;
+  try {
+    const response = await fetch(TRACKING_ENDPOINT, { headers: { Accept: 'application/json' } });
+    if (!response.ok) return undefined;
+    return await response.json() as VisitorAnalyticsData;
+  } catch {
+    return undefined;
+  }
+}
 
+export async function trackCurrentVisit(): Promise<VisitorAnalyticsData> {
+  const localData = getStoredAnalytics();
+  if (typeof window === 'undefined') return localData;
+
+  const endpointData = await fetchAnalyticsFromEndpoint();
+  const currentData = endpointData || localData;
   const existingSessionId = sessionStorage.getItem(SESSION_KEY);
+  const visitorId = getOrCreateVisitorId();
+
   if (existingSessionId) {
-    // Current session already registered, mark current session record
-    const updatedRecords = currentData.records.map(r => 
-      r.id === existingSessionId ? { ...r, isCurrentSession: true } : r
+    const records = currentData.records.map(record =>
+      record.id === existingSessionId ? { ...record, isCurrentSession: true } : record,
     );
-    return { ...currentData, records: updatedRecords };
+    return { ...currentData, records };
   }
 
-  // Create new session
-  const newSessionId = 'ses_' + Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
-  sessionStorage.setItem(SESSION_KEY, newSessionId);
+  const sessionId = visitorId + '_' + createId();
+  sessionStorage.setItem(SESSION_KEY, sessionId);
 
-  // Attempt real IP geolocation with timeout, fallback to timezone inference
-  let geo = inferLocationFromTimezone();
+  let location = inferLocationFromTimezone();
   try {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 2500);
-    
-    // Using freeipapi or ipapi for real client geolocation
-    const res = await fetch('https://ipapi.co/json/', { signal: controller.signal });
-    clearTimeout(timer);
-    
-    if (res.ok) {
-      const data = await res.json();
-      if (data && data.country_name) {
-        geo = {
-          city: data.city || geo.city,
-          country: data.country_name || geo.country,
-          countryCode: data.country_code || geo.countryCode,
-          region: data.region || geo.region,
-        };
-      }
+    const timeout = window.setTimeout(() => controller.abort(), 2500);
+    const response = await fetch('https://ipapi.co/json/', { signal: controller.signal });
+    window.clearTimeout(timeout);
+    if (response.ok) {
+      const geo = await response.json();
+      location = {
+        city: geo.city || location.city,
+        country: geo.country_name || location.country,
+        countryCode: geo.country_code || location.countryCode,
+        region: geo.region || location.region,
+      };
     }
   } catch {
-    // Fallback quietly to timezone-based geo inference
+    // Keep the timezone fallback.
   }
 
-  const newRecord: VisitorRecord = {
-    id: newSessionId,
+  const record: VisitorRecord = {
+    id: sessionId,
     timestamp: new Date().toISOString(),
-    city: geo.city,
-    country: geo.country,
-    countryCode: geo.countryCode,
-    region: geo.region,
+    ...location,
     device: detectDevice(),
     browser: detectBrowser(),
+    displayName: getDisplayName(),
+    source: getSource(),
+    pagePath: window.location.pathname + window.location.search,
     isCurrentSession: true,
   };
 
+  const isKnownVisitor = currentData.records.some(item => item.id.startsWith(visitorId + '_'));
   const updatedData: VisitorAnalyticsData = {
-    totalVisits: (currentData.totalVisits || 0) + 1,
-    uniqueVisitors: (currentData.uniqueVisitors || 0) + 1,
-    records: [newRecord, ...currentData.records.slice(0, 49)], // keep last 50
+    totalVisits: currentData.totalVisits + 1,
+    uniqueVisitors: currentData.uniqueVisitors + (isKnownVisitor ? 0 : 1),
+    records: [record, ...currentData.records.slice(0, 49)],
     lastUpdated: new Date().toISOString(),
   };
+
+  if (TRACKING_ENDPOINT) {
+    try {
+      await fetch(TRACKING_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedData),
+      });
+    } catch {
+      console.warn('Visitor analytics endpoint is unavailable; saving locally.');
+    }
+  }
 
   saveStoredAnalytics(updatedData);
   return updatedData;
