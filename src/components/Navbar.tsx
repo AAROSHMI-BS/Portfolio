@@ -69,11 +69,13 @@ export function Navbar() {
         <a
           href="#hero"
           onClick={(e) => handleNavClick(e, '#hero')}
-          className="flex items-center gap-2.5 text-base font-display font-extrabold tracking-tight text-[var(--text-ink)] whitespace-nowrap shrink-0 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6C2BD9] rounded-lg"
+          className="flex items-center gap-3 text-base font-display font-extrabold tracking-tight text-[var(--text-ink)] whitespace-nowrap shrink-0 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6C2BD9] rounded-lg"
           aria-label="Aaroshmi B S Homepage"
         >
-          <MonogramLogo size={30} variant="violet" />
-          <span className="tracking-tight text-sm sm:text-base font-bold">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center">
+            <MonogramLogo size={28} variant="violet" />
+          </span>
+          <span className="tracking-tight text-sm sm:text-base font-bold ml-1">
             Aaroshmi B S
           </span>
         </a>

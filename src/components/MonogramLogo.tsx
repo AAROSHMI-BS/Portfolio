@@ -54,45 +54,27 @@ export function MonogramLogo({
       aria-label="Aaroshmi B S Monogram"
     >
       <svg
-        width={size * 0.72}
-        height={size * 0.72}
+        width={size * 0.68}
+        height={size * 0.68}
         viewBox="0 0 100 100"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
+        aria-hidden="true"
       >
-        {/* Geometric Bauhaus / Swiss inspired custom 'AB' monogram */}
-        {/* Letter A: bold triangle with crossbar */}
         <path
-          d="M26 80 L50 20 L74 80"
-          stroke={colors.fg}
-          strokeWidth="11"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        <line
-          x1="36"
-          y1="56"
-          x2="64"
-          y2="56"
+          d="M18 78 L42 22 L66 78 M27 58 H57"
           stroke={colors.fg}
           strokeWidth="10"
           strokeLinecap="round"
-        />
-        {/* Letter B integration: sleek right side loop arc intersecting A */}
-        <path
-          d="M50 32 C65 32 75 42 75 52 C75 62 65 64 50 64"
-          stroke={colors.fg}
-          strokeWidth="8"
-          strokeLinecap="round"
+          strokeLinejoin="round"
         />
         <path
-          d="M50 56 C68 56 80 66 80 78 C80 82 72 84 58 84"
+          d="M58 24 H70 C80 24 84 32 84 38 C84 45 79 49 72 50 C82 51 88 57 88 66 C88 75 80 78 69 78 H58 V24 Z"
           stroke={colors.fg}
-          strokeWidth="8"
+          strokeWidth="7"
           strokeLinecap="round"
+          strokeLinejoin="round"
         />
-        {/* Central curiosity dot */}
-        <circle cx="50" cy="46" r="4" fill={colors.fg} />
       </svg>
     </div>
   );

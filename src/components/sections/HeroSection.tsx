@@ -12,6 +12,7 @@ import { getPublicAssetPath } from '../../utils/publicAsset';
 
 export function HeroSection() {
   const [currentWordIndex, setCurrentWordIndex] = useState(0);
+  const [resumeNotice, setResumeNotice] = useState('');
   const rotatingWords = PORTFOLIO_CONTENT.hero.rotatingWords;
 
   useEffect(() => {
@@ -27,6 +28,29 @@ export function HeroSection() {
   };
 
   const isGitHubPlaceholder = PORTFOLIO_CONTENT.hero.githubUrl.includes('YOUR-USERNAME');
+
+  const handleResumeDownload = async (event: React.MouseEvent<HTMLAnchorElement>) => {
+    event.preventDefault();
+    const resumeUrl = getPublicAssetPath(PORTFOLIO_CONTENT.hero.resumePath);
+
+    try {
+      const response = await fetch(resumeUrl, { method: 'HEAD' });
+      if (!response.ok) {
+        setResumeNotice('Resume PDF has not been added yet.');
+        return;
+      }
+
+      const link = document.createElement('a');
+      link.href = resumeUrl;
+      link.download = 'Aaroshmi_B_S_Resume.pdf';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setResumeNotice('');
+    } catch {
+      setResumeNotice('Resume could not be downloaded. Please try again.');
+    }
+  };
 
   return (
     <section
@@ -119,12 +143,17 @@ export function HeroSection() {
           {/* Resume Download */}
           <MagneticButton
             href={getPublicAssetPath(PORTFOLIO_CONTENT.hero.resumePath)}
-            download="Aaroshmi_B_S_Resume.pdf"
+            onClick={(event) => void handleResumeDownload(event as React.MouseEvent<HTMLAnchorElement>)}
             className="px-4 py-2 rounded-full border border-slate-300 dark:border-white/20 bg-white/70 dark:bg-slate-800/70 hover:bg-white dark:hover:bg-slate-700 text-xs font-mono-tech font-bold uppercase tracking-wider text-[var(--text-ink)] shadow-xs transition-all flex items-center gap-2"
           >
             <Download className="w-3.5 h-3.5 text-[#6C2BD9]" />
             <span>Resume</span>
           </MagneticButton>
+          {resumeNotice && (
+            <span role="status" className="w-full text-center text-xs font-body text-[var(--text-muted)] sm:absolute sm:top-full sm:left-0 sm:mt-2">
+              {resumeNotice}
+            </span>
+          )}
 
           {/* Contact Me CTA */}
           <MagneticButton
