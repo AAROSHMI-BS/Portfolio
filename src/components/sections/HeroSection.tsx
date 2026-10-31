@@ -8,6 +8,7 @@ import { RotatingTextRing } from '../RotatingTextRing';
 import { CornerMarks } from '../CornerMarks';
 import { MonogramLogo } from '../MonogramLogo';
 import { MagneticButton } from '../MagneticButton';
+import { getPublicAssetPath } from '../../utils/publicAsset';
 
 export function HeroSection() {
   const [currentWordIndex, setCurrentWordIndex] = useState(0);
@@ -117,7 +118,7 @@ export function HeroSection() {
         <div className="flex flex-wrap items-center gap-3">
           {/* Resume Download */}
           <MagneticButton
-            href={PORTFOLIO_CONTENT.hero.resumePath}
+            href={getPublicAssetPath(PORTFOLIO_CONTENT.hero.resumePath)}
             download="Aaroshmi_B_S_Resume.pdf"
             className="px-4 py-2 rounded-full border border-slate-300 dark:border-white/20 bg-white/70 dark:bg-slate-800/70 hover:bg-white dark:hover:bg-slate-700 text-xs font-mono-tech font-bold uppercase tracking-wider text-[var(--text-ink)] shadow-xs transition-all flex items-center gap-2"
           >

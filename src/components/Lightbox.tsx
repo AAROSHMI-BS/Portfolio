@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, ChevronLeft, ChevronRight, Award, Camera, Sparkles } from 'lucide-react';
 import { GalleryItem } from '../data/content';
+import { getPublicAssetPath } from '../utils/publicAsset';
 
 interface LightboxProps {
   items: GalleryItem[];
@@ -123,7 +124,7 @@ export function Lightbox({
             }`}
           >
             <img
-              src={currentItem.src}
+              src={getPublicAssetPath(currentItem.src)}
               alt={currentItem.alt}
               className={`max-h-[65vh] max-w-full rounded-lg ${
                 isCertificate ? 'object-contain' : 'object-contain'

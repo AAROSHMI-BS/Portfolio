@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, useScroll, useVelocity, useTransform, useSpring, useMotionValue } from 'motion/react';
 import { PORTFOLIO_CONTENT } from '../data/content';
+import { getPublicAssetPath } from '../utils/publicAsset';
 
 interface KineticTitleProps {
   className?: string;
@@ -156,15 +157,15 @@ export function KineticTitle({ className = '' }: KineticTitleProps) {
           className="relative z-10 w-72 sm:w-88 md:w-96 lg:w-[460px] h-[320px] sm:h-[400px] md:h-[440px] lg:h-[480px] flex items-end justify-center pointer-events-none will-change-transform"
         >
           <img
-            src="/profile.jpg"
+            src={getPublicAssetPath('/profile.jpg')}
             alt="Aaroshmi B S - Portrait"
             className="w-full h-full object-contain object-bottom grayscale-0 contrast-105 brightness-102 saturate-[1.08] drop-shadow-[0_20px_40px_rgba(0,0,0,0.8)]"
             onError={(e) => {
               const target = e.currentTarget;
               if (!target.src.includes('hero-portrait-clean.png')) {
-                target.src = '/hero-portrait-clean.png';
+                target.src = getPublicAssetPath('/hero-portrait-clean.png');
               } else if (!target.src.includes('hero-portrait.png')) {
-                target.src = '/hero-portrait.png';
+                target.src = getPublicAssetPath('/hero-portrait.png');
               }
             }}
           />

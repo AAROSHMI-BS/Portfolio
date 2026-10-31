@@ -4,6 +4,7 @@ import { PORTFOLIO_CONTENT, GalleryItem } from '../../data/content';
 import { CornerMarks } from '../CornerMarks';
 import { Lightbox } from '../Lightbox';
 import { Camera, Sparkles, Image as ImageIcon, Award, Presentation } from 'lucide-react';
+import { getPublicAssetPath } from '../../utils/publicAsset';
 
 interface MomentsSectionProps {
   selectedEventFilter?: string;
@@ -140,7 +141,7 @@ export function MomentsSection({
                   >
                     <div className={`relative w-full ${frameClass} overflow-hidden`}>
                       <img
-                        src={item.src}
+                        src={getPublicAssetPath(item.src)}
                         alt={item.alt}
                         loading="lazy"
                         decoding="async"

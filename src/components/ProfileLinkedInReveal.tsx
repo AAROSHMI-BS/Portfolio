@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Linkedin, ExternalLink, Sparkles, X } from 'lucide-react';
 import { PORTFOLIO_CONTENT } from '../data/content';
+import { getPublicAssetPath } from '../utils/publicAsset';
 
 interface ProfileLinkedInRevealProps {
   className?: string;
@@ -123,7 +124,7 @@ export function ProfileLinkedInReveal({
         <div className="relative w-44 sm:w-52 h-60 sm:h-72 rounded-[24px] overflow-hidden bg-slate-900 border-2 border-white/20 shadow-xl flex flex-col justify-end">
           {/* Real Photo */}
           <img
-            src={PORTFOLIO_CONTENT.hero.profileImage}
+            src={getPublicAssetPath(PORTFOLIO_CONTENT.hero.profileImage)}
             alt="Aaroshmi B S - Software Developer"
             className="absolute inset-0 w-full h-full object-cover object-top filter grayscale contrast-110 group-hover:grayscale-0 group-hover:scale-105 transition-all duration-500"
             loading="eager"
@@ -131,7 +132,7 @@ export function ProfileLinkedInReveal({
             onError={(e) => {
               const target = e.currentTarget;
               if (!target.src.includes('dp_afd8bd01.png')) {
-                target.src = '/assets/aistudio/dp_afd8bd01.png';
+                target.src = getPublicAssetPath('/assets/aistudio/dp_afd8bd01.png');
               }
             }}
           />
